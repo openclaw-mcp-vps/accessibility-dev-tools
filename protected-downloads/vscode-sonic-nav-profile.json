@@ -1,0 +1,29 @@
+{
+  "profileName": "Sonic Navigation",
+  "target": "vscode",
+  "version": "1.0.0",
+  "speech": {
+    "announceLineNumber": true,
+    "announceScope": true,
+    "errorCue": "double_chime",
+    "warningCue": "single_chime"
+  },
+  "keybindings": [
+    {
+      "key": "ctrl+alt+j",
+      "command": "workbench.action.gotoSymbol",
+      "spokenLabel": "Jump to symbol"
+    },
+    {
+      "key": "ctrl+alt+e",
+      "command": "editor.action.marker.next",
+      "spokenLabel": "Next error"
+    },
+    {
+      "key": "ctrl+alt+b",
+      "command": "editor.action.goToDeclaration",
+      "spokenLabel": "Open declaration"
+    }
+  ],
+  "notes": "Import this profile into your extension settings and keep VS Code Screen Reader Optimized mode enabled."
+}

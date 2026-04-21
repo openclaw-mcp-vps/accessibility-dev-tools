@@ -1,100 +1,120 @@
-import { promises as fs } from "fs";
-import path from "path";
+import crypto from "node:crypto";
 
-export interface EntitlementRecord {
-  sessionId: string;
-  email: string | null;
-  purchasedAt: string;
-  source: "stripe_payment_link";
-  status: "active" | "refunded";
-}
+import LemonSqueezy from "@lemonsqueezy/lemonsqueezy.js";
 
-interface EntitlementStore {
-  records: EntitlementRecord[];
-}
+let lemonConfigured = false;
+let lemonClient: LemonSqueezy | null = null;
 
-const entitlementFilePath = path.join(process.cwd(), "data", "entitlements.json");
-
-async function ensureStore() {
-  const directory = path.dirname(entitlementFilePath);
-  await fs.mkdir(directory, { recursive: true });
-
-  try {
-    await fs.access(entitlementFilePath);
-  } catch {
-    const initialState: EntitlementStore = { records: [] };
-    await fs.writeFile(entitlementFilePath, JSON.stringify(initialState, null, 2), "utf8");
+export function configureLemonSqueezyClient(): void {
+  if (lemonConfigured) {
+    return;
   }
+
+  const apiKey = process.env.LEMONSQUEEZY_API_KEY;
+  if (!apiKey) {
+    return;
+  }
+
+  lemonClient = new LemonSqueezy(apiKey);
+
+  lemonConfigured = true;
 }
 
-async function readStore(): Promise<EntitlementStore> {
-  await ensureStore();
-  const raw = await fs.readFile(entitlementFilePath, "utf8");
+function parseStripeSignatureHeader(headerValue: string): {
+  timestamp: string;
+  signatures: string[];
+} {
+  const parts = headerValue.split(",").map((part) => part.trim());
 
-  try {
-    const parsed = JSON.parse(raw) as EntitlementStore;
-    if (!Array.isArray(parsed.records)) {
-      return { records: [] };
+  let timestamp = "";
+  const signatures: string[] = [];
+
+  for (const part of parts) {
+    if (part.startsWith("t=")) {
+      timestamp = part.replace("t=", "");
+      continue;
     }
-    return parsed;
-  } catch {
-    return { records: [] };
+
+    if (part.startsWith("v1=")) {
+      signatures.push(part.replace("v1=", ""));
+    }
   }
+
+  return { timestamp, signatures };
 }
 
-async function writeStore(store: EntitlementStore) {
-  await fs.writeFile(entitlementFilePath, JSON.stringify(store, null, 2), "utf8");
+function safeCompareHex(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left, "hex");
+  const rightBuffer = Buffer.from(right, "hex");
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-export async function recordStripeCheckout({
-  sessionId,
-  email,
-}: {
-  sessionId: string;
-  email: string | null;
-}) {
-  const store = await readStore();
-  const existingIndex = store.records.findIndex((record) => record.sessionId === sessionId);
+export function verifyStripeWebhookSignature(input: {
+  payload: string;
+  signatureHeader: string | null;
+  secret: string;
+}): boolean {
+  const { payload, signatureHeader, secret } = input;
 
-  const nextRecord: EntitlementRecord = {
-    sessionId,
-    email,
-    purchasedAt: new Date().toISOString(),
-    source: "stripe_payment_link",
-    status: "active",
+  if (!signatureHeader) {
+    return false;
+  }
+
+  const { timestamp, signatures } = parseStripeSignatureHeader(signatureHeader);
+
+  if (!timestamp || signatures.length === 0) {
+    return false;
+  }
+
+  const signedPayload = `${timestamp}.${payload}`;
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(signedPayload, "utf8")
+    .digest("hex");
+
+  return signatures.some((candidate) => safeCompareHex(candidate, expectedSignature));
+}
+
+export interface StripeWebhookEvent {
+  id?: string;
+  type?: string;
+  data?: {
+    object?: Record<string, unknown>;
   };
-
-  if (existingIndex >= 0) {
-    store.records[existingIndex] = {
-      ...store.records[existingIndex],
-      ...nextRecord,
-    };
-  } else {
-    store.records.push(nextRecord);
-  }
-
-  await writeStore(store);
-  return nextRecord;
 }
 
-export async function getEntitlementBySession(sessionId: string): Promise<EntitlementRecord | null> {
-  const store = await readStore();
-  return store.records.find((record) => record.sessionId === sessionId) ?? null;
-}
-
-export async function revokeEntitlement(sessionId: string) {
-  const store = await readStore();
-  const index = store.records.findIndex((record) => record.sessionId === sessionId);
-
-  if (index === -1) {
+export function extractCustomerEmail(event: StripeWebhookEvent): string | null {
+  const object = event.data?.object;
+  if (!object) {
     return null;
   }
 
-  store.records[index] = {
-    ...store.records[index],
-    status: "refunded",
-  };
+  const directEmail = object.customer_email;
+  if (typeof directEmail === "string") {
+    return directEmail.trim().toLowerCase();
+  }
 
-  await writeStore(store);
-  return store.records[index];
+  const customerDetails = object.customer_details;
+  if (customerDetails && typeof customerDetails === "object") {
+    const maybeEmail = (customerDetails as { email?: unknown }).email;
+    if (typeof maybeEmail === "string") {
+      return maybeEmail.trim().toLowerCase();
+    }
+  }
+
+  return null;
+}
+
+export function extractCustomerId(event: StripeWebhookEvent): string | undefined {
+  const object = event.data?.object;
+  if (!object) {
+    return undefined;
+  }
+
+  return typeof object.customer === "string" ? object.customer : undefined;
 }

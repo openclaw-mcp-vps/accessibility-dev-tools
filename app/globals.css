@@ -1,6 +1,34 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 :root {
+  --bg: #0d1117;
+  --bg-elevated: #111a24;
+  --bg-emphasis: #162232;
+  --line: #233044;
+  --line-strong: #2e3f59;
+  --text: #e6edf3;
+  --text-soft: #9fb2c8;
+  --accent: #56d4a5;
+  --accent-2: #8bc8ff;
+  --background: #0d1117;
+  --foreground: #e6edf3;
+  --card: #111a24;
+  --card-foreground: #e6edf3;
+  --popover: #111a24;
+  --popover-foreground: #e6edf3;
+  --primary: #56d4a5;
+  --primary-foreground: #0c141d;
+  --secondary: #1a2434;
+  --secondary-foreground: #e6edf3;
+  --muted: #162232;
+  --muted-foreground: #9fb2c8;
+  --accent-foreground: #0c141d;
+  --destructive: #ff7b72;
+  --border: #233044;
+  --input: #233044;
+  --ring: #56d4a5;
+  --radius: 0.625rem;
   color-scheme: dark;
 }
 
@@ -11,45 +39,34 @@
 html,
 body {
   margin: 0;
-  padding: 0;
   min-height: 100%;
-  background: #0d1117;
-  color: #e6edf3;
-  font-family: "Atkinson Hyperlegible", "IBM Plex Sans", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at 15% 0%, #143047 0%, #0d1117 45%, #0d1117 100%);
+  color: var(--text);
+  font-family: var(--font-display), "Segoe UI", sans-serif;
 }
 
 a {
   color: inherit;
 }
 
-::selection {
-  background: #2f81f7;
-  color: #f0f6fc;
+.mono {
+  font-family: var(--font-mono), "Fira Code", monospace;
 }
 
-.skip-link {
-  position: absolute;
-  left: -10000px;
-  top: auto;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
+.section-shell {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(22, 34, 50, 0.65), rgba(13, 17, 23, 0.8));
+  backdrop-filter: blur(6px);
 }
 
-.skip-link:focus {
-  position: fixed;
-  left: 1rem;
-  top: 1rem;
-  width: auto;
-  height: auto;
-  z-index: 50;
-  border-radius: 0.5rem;
-  background: #f0f6fc;
-  color: #0d1117;
-  padding: 0.5rem 0.75rem;
+.grid-auto-fit {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
-.surface {
-  background: linear-gradient(180deg, rgba(22, 27, 34, 0.95), rgba(13, 17, 23, 0.95));
-  border: 1px solid rgba(99, 110, 123, 0.35);
+.text-gradient {
+  background: linear-gradient(92deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

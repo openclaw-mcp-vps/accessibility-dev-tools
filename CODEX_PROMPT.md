@@ -11,22 +11,23 @@ NICHE: accessibility-tools
 PRICE: $$15/mo
 
 ARCHITECTURE SPEC:
-A Next.js web application that provides downloadable IDE extensions and desktop tools for enhanced accessibility. The platform manages user subscriptions, delivers software updates, and provides documentation through a fully screen-reader optimized interface.
+A Next.js web application that provides downloadable IDE extensions and desktop tools for enhanced accessibility. The platform manages user subscriptions, delivers accessibility plugins, and provides configuration dashboards for blind developers.
 
 PLANNED FILES:
 - app/page.tsx
-- app/download/page.tsx
 - app/dashboard/page.tsx
 - app/api/auth/route.ts
+- app/api/downloads/route.ts
 - app/api/webhooks/lemonsqueezy/route.ts
-- app/api/download/route.ts
-- components/ScreenReaderOptimized.tsx
-- components/AudioPlayer.tsx
+- components/AccessibilityDemo.tsx
+- components/IDEExtensionCard.tsx
+- components/AudioCodePlayer.tsx
 - lib/lemonsqueezy.ts
 - lib/auth.ts
-- lib/accessibility.ts
+- lib/database.ts
+- types/accessibility.ts
 
-DEPENDENCIES: next, tailwindcss, @lemonsqueezy/lemonsqueezy.js, next-auth, prisma, @prisma/client, react-aria, focus-trap-react, howler, framer-motion
+DEPENDENCIES: next, tailwindcss, @lemonsqueezy/lemonsqueezy.js, next-auth, prisma, @prisma/client, react-aria, framer-motion, lucide-react
 
 REQUIREMENTS:
 - Next.js 15 with App Router (app/ directory)

@@ -1,173 +1,182 @@
 import Link from "next/link";
-import { ArrowRight, AudioLines, Ear, Hand, ShieldCheck } from "lucide-react";
+import { ArrowRight, Ear, Hand, ShieldCheck, Timer, TriangleAlert } from "lucide-react";
 
-const faqs = [
+import { AccessibilityDemo } from "@/components/AccessibilityDemo";
+import { UnlockAccessForm } from "@/components/UnlockAccessForm";
+import type { FAQItem } from "@/types/accessibility";
+
+const faqs: FAQItem[] = [
   {
-    question: "Will this work with the IDE I already use at work?",
+    question: "What happens right after checkout?",
     answer:
-      "Yes. The starter packs include profiles for VS Code and JetBrains products, plus command-line utilities that work in any terminal. You do not need to switch away from your team’s standard tooling.",
+      "Stripe completes hosted checkout, your subscription is synced by webhook, and you unlock your dashboard using the same checkout email."
   },
   {
-    question: "How does purchase verification work?",
+    question: "Do the tools only work with one editor?",
     answer:
-      "After Stripe checkout completes, we receive a signed webhook, register your paid session, and unlock your account with a secure cookie when you confirm the session ID on the download page.",
+      "No. The pack includes VS Code and JetBrains profiles plus a terminal bridge for tactile and audio alerts in any CLI workflow."
   },
   {
-    question: "Do you support screen readers beyond VoiceOver?",
+    question: "Can teams buy licenses for blind developers?",
     answer:
-      "Yes. The toolset is tested with NVDA, JAWS, VoiceOver, and Narrator. Profiles include speech pacing defaults, keyboard-focused navigation maps, and semantic alerts tuned per reader.",
+      "Yes. Accessibility leads can purchase seats and onboard each engineer through individual checkout emails."
   },
   {
-    question: "Can teams buy this for multiple developers?",
+    question: "Is this usable by students and consultants?",
     answer:
-      "Yes. Accessibility consultants and engineering managers can provision seats and share deployment scripts for standardized onboarding across teams.",
-  },
+      "Yes. The same subscription unlocks the full dashboard, extension downloads, and configuration guidance for coursework or client work."
+  }
 ];
 
-export default function HomePage() {
-  const stripePaymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK as string;
+const stripePaymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK as string;
 
+export default function HomePage(): React.JSX.Element {
   return (
-    <main id="main-content" className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <header className="surface relative overflow-hidden rounded-2xl p-8 sm:p-12">
-        <div className="absolute -right-24 -top-16 h-60 w-60 rounded-full bg-cyan-500/20 blur-3xl" aria-hidden />
-        <div className="absolute -bottom-24 -left-12 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden />
-        <p className="mb-3 inline-flex rounded-full border border-cyan-300/30 bg-cyan-400/10 px-3 py-1 text-sm text-cyan-100">
-          Development tools for blind programmers
-        </p>
-        <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-white sm:text-5xl">
-          Accessible coding, without compromise on speed or professional tooling.
-        </h1>
-        <p className="mt-4 max-w-2xl text-base text-slate-200 sm:text-lg">
-          Accessibility Dev Tools removes the constant friction blind engineers face in mainstream IDEs by delivering
-          optimized screen reader integration, audio code navigation cues, and tactile feedback workflows.
-        </p>
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <a
-            href={stripePaymentLink}
-            className="inline-flex items-center justify-center rounded-lg bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
-          >
-            Buy Access - $15/month
-            <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
-          </a>
-          <Link
-            href="/download"
-            className="inline-flex items-center justify-center rounded-lg border border-slate-500/60 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-300"
-          >
-            Open Download & Unlock Portal
-          </Link>
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-16 pt-8 sm:px-6 lg:px-8">
+      <header className="section-shell overflow-hidden p-8 lg:p-12">
+        <div className="relative z-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+          <div>
+            <p className="mono mb-4 inline-flex items-center rounded-full border border-[var(--line)] px-3 py-1 text-xs uppercase tracking-[0.18em] text-[var(--accent-2)]">
+              accessibility-tools
+            </p>
+            <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
+              Development tools for <span className="text-gradient">blind programmers</span>
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--text-soft)] sm:text-lg">
+              Accessibility Dev Tools upgrades mainstream IDE workflows with reliable screen reader
+              narration, audio-first navigation, and tactile feedback profiles so blind engineers can code
+              faster without leaving professional toolchains.
+            </p>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <a
+                href={stripePaymentLink}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[#0c141d] transition hover:brightness-105"
+              >
+                Buy Access - $15/mo
+                <ArrowRight size={16} />
+              </a>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center justify-center rounded-md border border-[var(--line)] px-5 py-3 text-sm font-medium transition hover:border-[var(--line-strong)]"
+              >
+                Open Dashboard
+              </Link>
+            </div>
+
+            <UnlockAccessForm />
+          </div>
+
+          <div className="grid gap-3 rounded-2xl border border-[var(--line)] bg-[rgba(13,17,23,0.6)] p-5">
+            <h2 className="text-lg font-semibold">Why This Matters</h2>
+            <p className="text-sm leading-relaxed text-[var(--text-soft)]">
+              Blind developers are forced to fight their tools instead of writing software. This product
+              removes that friction and keeps experienced engineers in the workforce where demand is highest.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-[var(--line)] p-3">
+                <p className="text-2xl font-semibold">3x</p>
+                <p className="text-xs text-[var(--text-soft)]">Faster issue navigation with spoken diagnostics</p>
+              </div>
+              <div className="rounded-lg border border-[var(--line)] p-3">
+                <p className="text-2xl font-semibold">0</p>
+                <p className="text-xs text-[var(--text-soft)]">Need to switch to limited legacy editors</p>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      <section className="mt-10 grid gap-4 sm:grid-cols-3" aria-label="Core outcomes">
-        <article className="surface rounded-xl p-5">
-          <h2 className="text-sm font-medium text-cyan-100">Faster code scanning</h2>
-          <p className="mt-2 text-sm text-slate-300">
-            Navigate classes, functions, and TODO regions by semantic landmark, not raw line-by-line reading.
-          </p>
-        </article>
-        <article className="surface rounded-xl p-5">
-          <h2 className="text-sm font-medium text-cyan-100">Consistent IDE behavior</h2>
-          <p className="mt-2 text-sm text-slate-300">
-            Ship proven keyboard profiles that normalize shortcuts and announcements across editors.
-          </p>
-        </article>
-        <article className="surface rounded-xl p-5">
-          <h2 className="text-sm font-medium text-cyan-100">Lower cognitive load</h2>
-          <p className="mt-2 text-sm text-slate-300">
-            Audio and tactile cues communicate context changes instantly, reducing mental overhead during debugging.
-          </p>
-        </article>
-      </section>
-
-      <section className="mt-14" aria-labelledby="problem-heading">
-        <h2 id="problem-heading" className="text-2xl font-semibold text-white">
-          The problem in mainstream IDEs
-        </h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <article className="surface rounded-xl p-6">
-            <p className="text-base text-slate-200">
-              Blind developers are expected to compete in environments where plugin ecosystems, code navigation, and
-              debugger views were designed visually first. Even when screen readers technically work, output is noisy,
-              focus order is inconsistent, and critical context is hidden in non-semantic UI patterns.
+      <section id="problem" className="section-shell p-6 lg:p-8">
+        <h2 className="text-2xl font-semibold">The Problem</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <article className="rounded-xl border border-[var(--line)] bg-[rgba(13,17,23,0.55)] p-4">
+            <TriangleAlert className="mb-2" size={18} />
+            <h3 className="font-medium">Noisy, ambiguous screen reader output</h3>
+            <p className="mt-2 text-sm text-[var(--text-soft)]">
+              Core editor actions frequently produce verbose output that hides critical navigation context.
             </p>
           </article>
-          <article className="surface rounded-xl p-6">
-            <p className="text-base text-slate-200">
-              That friction pushes strong engineers toward inferior tooling or out of software roles entirely. Teams lose
-              proven contributors, and the industry loses talent at a time when experienced developers are in short
-              supply.
+          <article className="rounded-xl border border-[var(--line)] bg-[rgba(13,17,23,0.55)] p-4">
+            <Timer className="mb-2" size={18} />
+            <h3 className="font-medium">Slow code traversal under deadline pressure</h3>
+            <p className="mt-2 text-sm text-[var(--text-soft)]">
+              Finding symbols, diagnostics, and references can take minutes instead of seconds in large repos.
+            </p>
+          </article>
+          <article className="rounded-xl border border-[var(--line)] bg-[rgba(13,17,23,0.55)] p-4">
+            <ShieldCheck className="mb-2" size={18} />
+            <h3 className="font-medium">Talent lost to inaccessible tooling</h3>
+            <p className="mt-2 text-sm text-[var(--text-soft)]">
+              Companies lose skilled engineers because modern IDEs still assume visual-first workflows.
             </p>
           </article>
         </div>
       </section>
 
-      <section className="mt-14" aria-labelledby="solution-heading">
-        <h2 id="solution-heading" className="text-2xl font-semibold text-white">
-          Purpose-built solution
-        </h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
-          <article className="surface rounded-xl p-6">
-            <Ear className="h-6 w-6 text-cyan-200" aria-hidden />
-            <h3 className="mt-3 text-lg font-semibold text-white">Screen-reader-first extensions</h3>
-            <p className="mt-2 text-sm text-slate-300">
-              Preconfigured extension bundles add predictable announcements for diagnostics, file changes, and symbol
-              jumps.
-            </p>
-          </article>
-          <article className="surface rounded-xl p-6">
-            <AudioLines className="h-6 w-6 text-cyan-200" aria-hidden />
-            <h3 className="mt-3 text-lg font-semibold text-white">Audio code navigation</h3>
-            <p className="mt-2 text-sm text-slate-300">
-              Earcons and spoken summaries map structure changes in real time so you can traverse large files quickly.
-            </p>
-          </article>
-          <article className="surface rounded-xl p-6">
-            <Hand className="h-6 w-6 text-cyan-200" aria-hidden />
-            <h3 className="mt-3 text-lg font-semibold text-white">Tactile feedback profiles</h3>
-            <p className="mt-2 text-sm text-slate-300">
-              Optional haptic patterns reinforce navigation milestones, errors, and breakpoints on supported devices.
-            </p>
-          </article>
+      <section id="solution" className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="section-shell p-6 lg:p-8">
+          <h2 className="text-2xl font-semibold">The Solution</h2>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--text-soft)]">
+            Accessibility Dev Tools delivers practical improvements where blind developers lose time the most:
+            code structure movement, diagnostics triage, and continuous feedback while coding and testing.
+          </p>
+          <ul className="mt-5 space-y-3 text-sm">
+            <li className="flex items-start gap-2">
+              <Ear size={16} className="mt-0.5 text-[var(--accent)]" />
+              <span>Speech-tuned keymaps that announce symbols, scope, and diagnostics without extra noise.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Hand size={16} className="mt-0.5 text-[var(--accent)]" />
+              <span>Haptic bridge scripts that convert build and test events into tactile patterns instantly.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <ShieldCheck size={16} className="mt-0.5 text-[var(--accent)]" />
+              <span>Paid dashboard with downloadable configs and an audio player for code comprehension drills.</span>
+            </li>
+          </ul>
         </div>
+
+        <AccessibilityDemo />
       </section>
 
-      <section className="mt-14" aria-labelledby="pricing-heading">
-        <h2 id="pricing-heading" className="text-2xl font-semibold text-white">
-          Pricing
-        </h2>
-        <article className="surface mt-5 rounded-xl p-8">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="inline-flex items-center rounded-full border border-emerald-300/35 bg-emerald-400/10 px-3 py-1 text-sm text-emerald-100">
-                <ShieldCheck className="mr-2 h-4 w-4" aria-hidden />
-                Professional accessibility toolkit
-              </p>
-              <h3 className="mt-3 text-3xl font-semibold text-white">$15/month</h3>
-              <p className="mt-2 max-w-2xl text-slate-300">
-                Includes downloadable IDE packs, the interactive accessibility dashboard, monthly update drops, and
-                priority support for working developers and accessibility consultants.
-              </p>
-            </div>
+      <section id="pricing" className="section-shell p-6 lg:p-8">
+        <h2 className="text-2xl font-semibold">Pricing</h2>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_300px] lg:items-start">
+          <div>
+            <p className="text-sm leading-relaxed text-[var(--text-soft)]">
+              Built for blind software engineers, accessibility consultants who code, and computer science
+              students preparing for professional developer roles.
+            </p>
+            <ul className="mt-4 space-y-2 text-sm text-[var(--text-soft)]">
+              <li>Full dashboard access with extension downloads</li>
+              <li>Audio Code Player for line-by-line spoken review</li>
+              <li>Screen reader and tactile profile updates</li>
+              <li>Continuous compatibility tuning for mainstream IDE releases</li>
+            </ul>
+          </div>
+
+          <aside className="rounded-2xl border border-[var(--line-strong)] bg-[rgba(22,34,50,0.7)] p-5">
+            <p className="text-sm uppercase tracking-wide text-[var(--accent-2)]">Single Plan</p>
+            <p className="mt-1 text-4xl font-bold">$15</p>
+            <p className="text-sm text-[var(--text-soft)]">per month</p>
             <a
               href={stripePaymentLink}
-              className="inline-flex items-center rounded-lg bg-cyan-300 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-200"
+              className="mt-5 inline-flex w-full items-center justify-center rounded-md bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[#0c141d] transition hover:brightness-105"
             >
-              Buy Subscription
+              Start Subscription
             </a>
-          </div>
-        </article>
+          </aside>
+        </div>
       </section>
 
-      <section className="mt-14 pb-12" aria-labelledby="faq-heading">
-        <h2 id="faq-heading" className="text-2xl font-semibold text-white">
-          FAQ
-        </h2>
-        <div className="mt-5 space-y-3">
-          {faqs.map((faq) => (
-            <article key={faq.question} className="surface rounded-xl p-6">
-              <h3 className="text-base font-semibold text-white">{faq.question}</h3>
-              <p className="mt-2 text-sm text-slate-300">{faq.answer}</p>
+      <section id="faq" className="section-shell p-6 lg:p-8">
+        <h2 className="text-2xl font-semibold">FAQ</h2>
+        <div className="mt-4 grid gap-3">
+          {faqs.map((item) => (
+            <article key={item.question} className="rounded-xl border border-[var(--line)] bg-[rgba(13,17,23,0.55)] p-4">
+              <h3 className="font-medium">{item.question}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--text-soft)]">{item.answer}</p>
             </article>
           ))}
         </div>

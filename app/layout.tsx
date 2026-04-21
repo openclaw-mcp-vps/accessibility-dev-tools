@@ -1,61 +1,62 @@
 import type { Metadata } from "next";
+import { IBM_Plex_Mono, Space_Grotesk, Geist } from "next/font/google";
+
 import "./globals.css";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
+const displayFont = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["400", "500", "700"]
+});
+
+const monoFont = IBM_Plex_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  weight: ["400", "500", "600"]
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://accessibility-dev-tools.com"),
-  title: "Accessibility Dev Tools | IDE Accessibility for Blind Programmers",
+  title: {
+    default: "Accessibility Dev Tools | Development Tools for Blind Programmers",
+    template: "%s | Accessibility Dev Tools"
+  },
   description:
-    "Development tools for blind programmers: screen-reader-first IDE workflows, audio code navigation, tactile feedback cues, and downloadable extension packs.",
+    "Accessible IDE extension packs, audio code navigation, and tactile feedback tooling for blind programmers who need professional development workflows.",
   keywords: [
     "blind programmers",
     "accessible IDE",
     "screen reader coding",
     "audio code navigation",
-    "tactile programming tools",
+    "tactile developer tools"
   ],
   openGraph: {
     title: "Accessibility Dev Tools",
     description:
-      "Professional development tools that make mainstream IDEs and code editors fully accessible to blind software engineers.",
-    url: "https://accessibility-dev-tools.com",
-    siteName: "Accessibility Dev Tools",
-    images: [
-      {
-        url: "/og-image.svg",
-        width: 1200,
-        height: 630,
-        alt: "Accessibility Dev Tools platform preview",
-      },
-    ],
-    locale: "en_US",
+      "Development tools for blind programmers with better screen reader integration, audio navigation, and tactile feedback.",
     type: "website",
+    url: "https://accessibility-dev-tools.com",
+    siteName: "Accessibility Dev Tools"
   },
   twitter: {
     card: "summary_large_image",
     title: "Accessibility Dev Tools",
     description:
-      "Accessible coding tools for blind programmers with screen-reader-first workflows.",
-    images: ["/og-image.svg"],
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
+      "Production-grade accessibility tooling for blind software engineers using modern IDEs."
+  }
 };
 
 export default function RootLayout({
-  children,
+  children
 }: Readonly<{
   children: React.ReactNode;
-}>) {
+}>): React.JSX.Element {
   return (
-    <html lang="en">
-      <body>
-        <a className="skip-link" href="#main-content">
-          Skip to main content
-        </a>
-        {children}
-      </body>
+    <html lang="en" className={cn(displayFont.variable, monoFont.variable, "font-sans", geist.variable)}>
+      <body>{children}</body>
     </html>
   );
 }

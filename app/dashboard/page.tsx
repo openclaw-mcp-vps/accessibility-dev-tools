@@ -1,35 +1,45 @@
-import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import ScreenReaderOptimized from "@/components/ScreenReaderOptimized";
-import { hasPaidAccess } from "@/lib/auth";
 
-export const metadata: Metadata = {
-  title: "Dashboard | Accessibility Dev Tools",
-  description:
-    "Use audio code navigation, tactile feedback cues, and screen-reader-optimized code landmarks in the protected dashboard.",
-};
+import { AccessibilityDemo } from "@/components/AccessibilityDemo";
+import { AudioCodePlayer } from "@/components/AudioCodePlayer";
+import { IDEExtensionCard } from "@/components/IDEExtensionCard";
+import { LogoutButton } from "@/components/LogoutButton";
+import { ACCESS_COOKIE_NAME, getEmailFromAccessToken } from "@/lib/auth";
+import { extensionCatalog } from "@/lib/downloads";
 
-export default async function DashboardPage() {
+export default async function DashboardPage(): Promise<React.JSX.Element> {
   const cookieStore = await cookies();
+  const token = cookieStore.get(ACCESS_COOKIE_NAME)?.value;
+  const email = await getEmailFromAccessToken(token);
 
-  if (!hasPaidAccess(cookieStore)) {
-    redirect("/download");
+  if (!email) {
+    redirect("/");
   }
 
   return (
-    <main id="main-content" className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <header className="surface rounded-xl p-6">
-        <h1 className="text-3xl font-semibold text-white">Accessibility Workbench Dashboard</h1>
-        <p className="mt-2 text-slate-300">
-          This protected dashboard helps blind developers inspect source files by semantic landmarks, tune spoken output,
-          and navigate with audio and tactile cues.
-        </p>
-      </header>
-
-      <section className="mt-6">
-        <ScreenReaderOptimized />
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-14 pt-8 sm:px-6 lg:px-8">
+      <section className="section-shell p-6 lg:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="mono text-xs uppercase tracking-[0.16em] text-[var(--accent-2)]">Paid Dashboard</p>
+            <h1 className="mt-2 text-3xl font-semibold">Accessible Development Workspace</h1>
+            <p className="mt-2 text-sm text-[var(--text-soft)]">
+              Signed in as <span className="font-medium text-[var(--text)]">{email}</span>
+            </p>
+          </div>
+          <LogoutButton />
+        </div>
       </section>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {extensionCatalog.map((extension) => (
+          <IDEExtensionCard key={extension.id} extension={extension} />
+        ))}
+      </section>
+
+      <AudioCodePlayer />
+      <AccessibilityDemo />
     </main>
   );
 }
