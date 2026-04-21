@@ -1,71 +1,158 @@
-import crypto from "node:crypto";
+import { createHmac, timingSafeEqual } from "crypto";
+import { mkdir, readFile, writeFile } from "fs/promises";
+import path from "path";
 
-import { createSession, deleteSession, getSessionByTokenHash } from "@/lib/database";
+import { cookies } from "next/headers";
 
-export const ACCESS_COOKIE_NAME = "adt_access_session";
+export const ACCESS_COOKIE_NAME = "adt_access";
+const ACCESS_COOKIE_TTL_SECONDS = 60 * 60 * 24 * 30;
+const PAID_EMAILS_FILE = path.join(process.cwd(), ".data", "paid-emails.json");
 
-export const ACCESS_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  path: "/",
-  maxAge: 60 * 60 * 24 * 30
-};
+interface PaidStore {
+  emails: string[];
+}
 
-export function normalizeEmail(email: string): string {
+export interface AccessSession {
+  email: string;
+  expiresAt: number;
+}
+
+function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-export function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+async function readPaidStore(): Promise<PaidStore> {
+  try {
+    const raw = await readFile(PAID_EMAILS_FILE, "utf8");
+    const parsed = JSON.parse(raw) as PaidStore;
+
+    if (!Array.isArray(parsed.emails)) {
+      return { emails: [] };
+    }
+
+    return {
+      emails: parsed.emails.map((email) => normalizeEmail(email)).filter(Boolean)
+    };
+  } catch {
+    return { emails: [] };
+  }
 }
 
-export function hashSessionToken(rawToken: string): string {
-  return crypto.createHash("sha256").update(rawToken).digest("hex");
+async function writePaidStore(store: PaidStore): Promise<void> {
+  await mkdir(path.dirname(PAID_EMAILS_FILE), { recursive: true });
+  await writeFile(PAID_EMAILS_FILE, JSON.stringify(store, null, 2), "utf8");
 }
 
-export function createRawSessionToken(): string {
-  return crypto.randomBytes(32).toString("hex");
+function signingSecret(): string {
+  return process.env.STRIPE_WEBHOOK_SECRET || "local-accessibility-dev-secret";
 }
 
-export async function createAccessSession(email: string): Promise<{
-  token: string;
-  expiresAt: number;
-}> {
-  const token = createRawSessionToken();
-  const tokenHash = hashSessionToken(token);
-  const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 30;
-
-  await createSession({
-    tokenHash,
-    email: normalizeEmail(email),
-    createdAt: new Date().toISOString(),
-    expiresAt
-  });
-
-  return { token, expiresAt };
+function sign(payload: string): string {
+  return createHmac("sha256", signingSecret()).update(payload).digest("base64url");
 }
 
-export async function getEmailFromAccessToken(rawToken: string | undefined): Promise<string | null> {
-  if (!rawToken) {
+function safeCompare(a: string, b: string): boolean {
+  const left = Buffer.from(a, "utf8");
+  const right = Buffer.from(b, "utf8");
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return timingSafeEqual(left, right);
+}
+
+export async function markEmailAsPaid(email: string): Promise<boolean> {
+  const normalized = normalizeEmail(email);
+  if (!normalized || !normalized.includes("@")) {
+    return false;
+  }
+
+  const store = await readPaidStore();
+  if (!store.emails.includes(normalized)) {
+    store.emails.push(normalized);
+    await writePaidStore(store);
+  }
+
+  return true;
+}
+
+export async function isPaidEmail(email: string): Promise<boolean> {
+  const normalized = normalizeEmail(email);
+  if (!normalized || !normalized.includes("@")) {
+    return false;
+  }
+
+  const store = await readPaidStore();
+  return store.emails.includes(normalized);
+}
+
+export function createAccessToken(email: string): string {
+  const expiresAt = Date.now() + ACCESS_COOKIE_TTL_SECONDS * 1000;
+  const payload = Buffer.from(
+    JSON.stringify({ email: normalizeEmail(email), expiresAt }),
+    "utf8"
+  ).toString("base64url");
+
+  const signature = sign(payload);
+  return `${payload}.${signature}`;
+}
+
+export function verifyAccessToken(token: string | null | undefined): AccessSession | null {
+  if (!token || !token.includes(".")) {
     return null;
   }
 
-  const tokenHash = hashSessionToken(rawToken);
-  const session = await getSessionByTokenHash(tokenHash);
-
-  if (!session) {
+  const [payload, signature] = token.split(".");
+  if (!payload || !signature) {
     return null;
   }
 
-  return session.email;
-}
-
-export async function clearAccessToken(rawToken: string | undefined): Promise<void> {
-  if (!rawToken) {
-    return;
+  const expected = sign(payload);
+  if (!safeCompare(signature, expected)) {
+    return null;
   }
 
-  const tokenHash = hashSessionToken(rawToken);
-  await deleteSession(tokenHash);
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      email: string;
+      expiresAt: number;
+    };
+
+    if (!parsed?.email || !parsed?.expiresAt) {
+      return null;
+    }
+
+    if (parsed.expiresAt < Date.now()) {
+      return null;
+    }
+
+    return {
+      email: normalizeEmail(parsed.email),
+      expiresAt: parsed.expiresAt
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function accessCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: ACCESS_COOKIE_TTL_SECONDS
+  };
+}
+
+export async function getAccessSessionFromCookie(): Promise<AccessSession | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ACCESS_COOKIE_NAME)?.value;
+  return verifyAccessToken(token);
+}
+
+export async function hasActiveAccessCookie(): Promise<boolean> {
+  const session = await getAccessSessionFromCookie();
+  return Boolean(session);
 }

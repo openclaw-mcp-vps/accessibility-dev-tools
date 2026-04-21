@@ -1,83 +1,100 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  accessCookieOptions,
   ACCESS_COOKIE_NAME,
-  ACCESS_COOKIE_OPTIONS,
-  clearAccessToken,
-  createAccessSession,
-  getEmailFromAccessToken,
-  isValidEmail,
-  normalizeEmail
+  createAccessToken,
+  getAccessSessionFromCookie,
+  isPaidEmail
 } from "@/lib/auth";
-import { findActiveSubscriptionByEmail, removeExpiredSessions } from "@/lib/database";
 
-export const runtime = "nodejs";
+function normalizeRedirectPath(value: string | undefined): string {
+  if (!value) {
+    return "/dashboard";
+  }
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  await removeExpiredSessions();
+  return value.startsWith("/") ? value : "/dashboard";
+}
 
-  const token = request.cookies.get(ACCESS_COOKIE_NAME)?.value;
-  const email = await getEmailFromAccessToken(token);
+export async function GET() {
+  const session = await getAccessSessionFromCookie();
 
   return NextResponse.json({
-    authenticated: Boolean(email),
-    email
+    authenticated: Boolean(session),
+    email: session?.email ?? null,
+    expiresAt: session?.expiresAt ?? null
   });
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  let payload: { email?: string };
+export async function POST(request: NextRequest) {
+  const contentType = request.headers.get("content-type") ?? "";
 
-  try {
-    payload = (await request.json()) as { email?: string };
-  } catch {
+  let email = "";
+  let redirectTo = "/dashboard";
+  let expectsRedirect = false;
+
+  if (contentType.includes("application/json")) {
+    const body = (await request.json()) as { email?: string; redirectTo?: string };
+    email = body.email ?? "";
+    redirectTo = normalizeRedirectPath(body.redirectTo);
+  } else {
+    const formData = await request.formData();
+    email = String(formData.get("email") ?? "");
+    redirectTo = normalizeRedirectPath(String(formData.get("redirectTo") ?? "/dashboard"));
+    expectsRedirect = true;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail || !normalizedEmail.includes("@")) {
+    if (expectsRedirect) {
+      return NextResponse.redirect(new URL(`${redirectTo}?auth=invalid-email`, request.url));
+    }
+
     return NextResponse.json(
-      { error: "Request body must be valid JSON." },
+      { authenticated: false, message: "A valid purchase email is required." },
       { status: 400 }
     );
   }
 
-  const email = normalizeEmail(payload.email ?? "");
+  const paid = await isPaidEmail(normalizedEmail);
 
-  if (!isValidEmail(email)) {
-    return NextResponse.json(
-      { error: "Enter the same email you used in Stripe checkout." },
-      { status: 400 }
-    );
-  }
+  if (!paid) {
+    if (expectsRedirect) {
+      return NextResponse.redirect(new URL(`${redirectTo}?auth=not-found`, request.url));
+    }
 
-  const subscription = await findActiveSubscriptionByEmail(email);
-
-  if (!subscription) {
     return NextResponse.json(
       {
-        error:
-          "No active subscription was found for that email yet. Complete checkout first, or wait up to one minute for webhook sync."
+        authenticated: false,
+        message:
+          "No active subscription found for this email yet. Complete checkout and retry in 15-30 seconds."
       },
-      { status: 403 }
+      { status: 402 }
     );
   }
 
-  const { token, expiresAt } = await createAccessSession(email);
+  const token = createAccessToken(normalizedEmail);
+
+  if (expectsRedirect) {
+    const response = NextResponse.redirect(new URL(redirectTo, request.url));
+    response.cookies.set(ACCESS_COOKIE_NAME, token, accessCookieOptions());
+    return response;
+  }
+
   const response = NextResponse.json({
     authenticated: true,
-    email,
-    expiresAt
+    email: normalizedEmail
   });
-
-  response.cookies.set(ACCESS_COOKIE_NAME, token, ACCESS_COOKIE_OPTIONS);
+  response.cookies.set(ACCESS_COOKIE_NAME, token, accessCookieOptions());
   return response;
 }
 
-export async function DELETE(request: NextRequest): Promise<NextResponse> {
-  const token = request.cookies.get(ACCESS_COOKIE_NAME)?.value;
-  await clearAccessToken(token);
-
+export async function DELETE() {
   const response = NextResponse.json({ authenticated: false });
   response.cookies.set(ACCESS_COOKIE_NAME, "", {
-    ...ACCESS_COOKIE_OPTIONS,
+    ...accessCookieOptions(),
     maxAge: 0
   });
-
   return response;
 }

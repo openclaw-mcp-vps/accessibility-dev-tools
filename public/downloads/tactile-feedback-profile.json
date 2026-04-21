@@ -1,0 +1,25 @@
+{
+  "profileName": "CodeSense Default",
+  "events": {
+    "build_success": {
+      "mode": "both",
+      "pattern": [100, 50, 100],
+      "frequency": 880
+    },
+    "build_failure": {
+      "mode": "both",
+      "pattern": [250, 80, 250, 80, 250],
+      "frequency": 250
+    },
+    "test_failure": {
+      "mode": "audio",
+      "pattern": [180, 80, 180],
+      "frequency": 340
+    },
+    "deployment_complete": {
+      "mode": "vibration",
+      "pattern": [120, 40, 120, 40, 280],
+      "frequency": 720
+    }
+  }
+}

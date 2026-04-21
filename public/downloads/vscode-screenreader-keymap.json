@@ -1,0 +1,34 @@
+{
+  "name": "CodeSense Accessibility Keymap",
+  "description": "VS Code keybindings tuned for screen-reader-first coding workflows.",
+  "keybindings": [
+    {
+      "command": "editor.action.marker.next",
+      "key": "alt+shift+n",
+      "when": "editorTextFocus"
+    },
+    {
+      "command": "editor.action.marker.prev",
+      "key": "alt+shift+p",
+      "when": "editorTextFocus"
+    },
+    {
+      "command": "workbench.action.quickOpen",
+      "key": "alt+shift+o"
+    },
+    {
+      "command": "workbench.action.gotoSymbol",
+      "key": "alt+shift+s"
+    },
+    {
+      "command": "editor.action.showHover",
+      "key": "alt+shift+h",
+      "when": "editorTextFocus"
+    }
+  ],
+  "notes": [
+    "Avoids common NVDA and JAWS global shortcut conflicts.",
+    "Pairs with speech punctuation set to most for code reading sessions.",
+    "Use Command palette command 'Preferences: Open Keyboard Shortcuts (JSON)' to import."
+  ]
+}

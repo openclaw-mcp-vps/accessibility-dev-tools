@@ -1,153 +1,219 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Pause, Play, Volume2 } from "lucide-react";
+import { Headphones, PauseCircle, PlayCircle, SkipBack, SkipForward } from "lucide-react";
 
-const seedCode = `async function loadWorkspace(userId: string) {
-  const workspace = await getWorkspace(userId);
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  buildSpokenLines,
+  clampLine,
+  estimateSpeechDurationMs,
+  extractNavigationAnchors
+} from "@/lib/audio-navigation";
 
-  if (!workspace) {
-    throw new Error("Workspace not found");
+const starterSnippet = `class SymbolNavigator {
+  constructor(private readonly symbols: string[]) {}
+
+  next(currentIndex: number): string {
+    const nextIndex = (currentIndex + 1) % this.symbols.length;
+    return this.symbols[nextIndex];
   }
-
-  return workspace.projects.filter((project) => project.enabled);
-}`;
-
-function expandSymbols(line: string): string {
-  return line
-    .replace(/=>/g, " arrow ")
-    .replace(/===/g, " strictly equals ")
-    .replace(/!==/g, " not strictly equals ")
-    .replace(/&&/g, " and ")
-    .replace(/\|\|/g, " or ")
-    .replace(/[{}]/g, " brace ")
-    .replace(/[()]/g, " parenthesis ");
 }
 
-export function AudioCodePlayer(): React.JSX.Element {
-  const [code, setCode] = useState(seedCode);
-  const [playbackRate, setPlaybackRate] = useState(1.05);
-  const [currentLine, setCurrentLine] = useState<number | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+export function announceBuildStatus(failed: boolean) {
+  return failed ? "Build failed with 3 errors" : "Build passed";
+}`;
 
-  const lines = useMemo(() => code.split("\n"), [code]);
+function speak(text: string, rate: number, voiceName: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = rate;
+
+  if (voiceName) {
+    const voice = window.speechSynthesis
+      .getVoices()
+      .find((candidate) => candidate.name === voiceName);
+    if (voice) {
+      utterance.voice = voice;
+    }
+  }
+
+  window.speechSynthesis.speak(utterance);
+}
+
+export function AudioCodePlayer() {
+  const [code, setCode] = useState(starterSnippet);
+  const [currentLine, setCurrentLine] = useState(1);
+  const [rate, setRate] = useState(1.05);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState("");
+
+  const spokenLines = useMemo(() => buildSpokenLines(code), [code]);
+  const anchors = useMemo(() => extractNavigationAnchors(code), [code]);
 
   useEffect(() => {
-    return () => {
-      if (typeof window !== "undefined") {
-        window.speechSynthesis.cancel();
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
+
+    const loadVoices = () => {
+      const available = window.speechSynthesis.getVoices();
+      setVoices(available);
+      if (!selectedVoice && available.length > 0) {
+        setSelectedVoice(available[0].name);
       }
     };
-  }, []);
 
-  const speakFrom = (lineIndex: number): void => {
-    if (typeof window === "undefined") {
-      return;
-    }
+    loadVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
 
-    if (!window.speechSynthesis) {
-      return;
-    }
-
-    if (lineIndex >= lines.length) {
-      setIsPlaying(false);
-      setCurrentLine(null);
-      return;
-    }
-
-    const spokenLine = expandSymbols(lines[lineIndex].trim() || "blank line");
-    const utterance = new SpeechSynthesisUtterance(`Line ${lineIndex + 1}. ${spokenLine}`);
-    utterance.rate = playbackRate;
-    utterance.pitch = 1;
-    utterance.onend = () => speakFrom(lineIndex + 1);
-    utterance.onerror = () => {
-      setIsPlaying(false);
-      setCurrentLine(null);
+    return () => {
+      window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
+      window.speechSynthesis.cancel();
     };
+  }, [selectedVoice]);
 
-    setCurrentLine(lineIndex + 1);
-    window.speechSynthesis.speak(utterance);
+  useEffect(() => {
+    const bounded = clampLine(currentLine, code);
+    if (bounded !== currentLine) {
+      setCurrentLine(bounded);
+    }
+  }, [code, currentLine]);
+
+  const activeLine = spokenLines[currentLine - 1];
+
+  const playCurrent = () => {
+    if (!activeLine) {
+      return;
+    }
+    const intro = `Line ${activeLine.lineNumber}. `;
+    speak(`${intro}${activeLine.spoken}`, rate, selectedVoice);
   };
 
-  const handlePlayPause = (): void => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    if (!window.speechSynthesis) {
-      return;
-    }
-
-    if (isPlaying) {
+  const stop = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
-      setIsPlaying(false);
-      setCurrentLine(null);
-      return;
     }
+  };
 
-    window.speechSynthesis.cancel();
-    setIsPlaying(true);
-    speakFrom(0);
+  const jump = (next: number) => {
+    setCurrentLine(clampLine(next, code));
   };
 
   return (
-    <section className="section-shell p-6 lg:p-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-xl font-semibold">Audio Code Player</h3>
-        <button
-          type="button"
-          onClick={handlePlayPause}
-          className="inline-flex items-center gap-2 rounded-md border border-[var(--line)] bg-[var(--bg-emphasis)] px-4 py-2 text-sm font-medium transition hover:border-[var(--accent)]"
-        >
-          {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-          {isPlaying ? "Stop Playback" : "Play Code"}
-        </button>
-      </div>
-
-      <p className="mt-3 text-sm text-[var(--text-soft)]">
-        Reads code line-by-line with symbol expansion so punctuation-heavy lines are understandable in one pass.
-      </p>
-
-      <div className="mt-4 rounded-xl border border-[var(--line)] bg-[rgba(13,17,23,0.65)] p-4">
-        <label htmlFor="audio-code" className="mb-2 block text-sm font-medium">
-          Code Snippet
-        </label>
-        <textarea
-          id="audio-code"
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-          className="mono h-56 w-full resize-y rounded-md border border-[var(--line)] bg-[#0b1320] p-3 text-sm leading-relaxed outline-none focus:border-[var(--accent)]"
-          spellCheck={false}
-        />
-      </div>
-
-      <div className="mt-4 grid gap-4 md:grid-cols-[1fr_220px]">
-        <div className="rounded-xl border border-[var(--line)] bg-[rgba(13,17,23,0.6)] p-4">
-          <p className="mb-2 text-sm font-medium text-[var(--text-soft)]">Live Playback Status</p>
-          <p className="text-sm">
-            {currentLine
-              ? `Currently speaking line ${currentLine}.`
-              : "Idle. Start playback to hear line-by-line narration."}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-[var(--line)] bg-[rgba(13,17,23,0.6)] p-4">
-          <label htmlFor="playback-rate" className="mb-3 flex items-center gap-2 text-sm font-medium">
-            <Volume2 size={16} /> Speech Rate
-          </label>
-          <input
-            id="playback-rate"
-            type="range"
-            min="0.8"
-            max="1.6"
-            step="0.05"
-            value={playbackRate}
-            onChange={(event) => setPlaybackRate(Number(event.target.value))}
-            className="w-full"
+    <Card className="border-cyan-500/25">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-cyan-100">
+          <Headphones className="h-5 w-5" aria-hidden />
+          Audio Code Player
+        </CardTitle>
+        <CardDescription>
+          Listen to code by line with semantic landmarks for fast navigation.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <label className="block space-y-2">
+          <span className="text-sm text-slate-300">Code Snippet</span>
+          <textarea
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            className="h-52 w-full rounded-md border border-slate-700 bg-slate-950/80 p-3 text-sm text-slate-100 outline-none ring-cyan-400 transition focus:ring"
+            aria-label="Editable code snippet for audio playback"
           />
-          <p className="mt-2 text-sm text-[var(--text-soft)]">{playbackRate.toFixed(2)}x</p>
+        </label>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" onClick={() => jump(currentLine - 1)}>
+            <SkipBack className="mr-1 h-4 w-4" aria-hidden />
+            Previous
+          </Button>
+          <Button onClick={playCurrent}>
+            <PlayCircle className="mr-1 h-4 w-4" aria-hidden />
+            Speak Line {currentLine}
+          </Button>
+          <Button variant="secondary" onClick={stop}>
+            <PauseCircle className="mr-1 h-4 w-4" aria-hidden />
+            Stop
+          </Button>
+          <Button variant="secondary" onClick={() => jump(currentLine + 1)}>
+            <SkipForward className="mr-1 h-4 w-4" aria-hidden />
+            Next
+          </Button>
         </div>
-      </div>
-    </section>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="space-y-2 text-sm text-slate-300">
+            Speech Rate ({rate.toFixed(2)}x)
+            <input
+              type="range"
+              min={0.75}
+              max={1.8}
+              step={0.05}
+              value={rate}
+              onChange={(event) => setRate(Number(event.target.value))}
+              className="w-full accent-cyan-400"
+            />
+          </label>
+
+          <label className="space-y-2 text-sm text-slate-300">
+            Voice
+            <select
+              value={selectedVoice}
+              onChange={(event) => setSelectedVoice(event.target.value)}
+              className="w-full rounded-md border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100"
+            >
+              {voices.map((voice) => (
+                <option key={voice.name} value={voice.name}>
+                  {voice.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-[0.95fr_1.05fr]">
+          <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+            <p className="mb-2 text-sm font-semibold text-slate-200">Navigation Landmarks</p>
+            <ul className="space-y-2 text-sm text-slate-300">
+              {anchors.length === 0 ? (
+                <li>No landmarks detected yet.</li>
+              ) : (
+                anchors.map((anchor) => (
+                  <li key={`${anchor.kind}-${anchor.line}`}>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentLine(anchor.line)}
+                      className="w-full rounded px-2 py-1 text-left hover:bg-slate-800"
+                    >
+                      Line {anchor.line}: {anchor.label}
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+
+          <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+            <p className="mb-2 text-sm font-semibold text-slate-200">Current Spoken Line</p>
+            <p className="text-sm text-cyan-100">
+              {activeLine
+                ? `Line ${activeLine.lineNumber}: ${activeLine.spoken}`
+                : "No line selected."}
+            </p>
+            {activeLine ? (
+              <p className="mt-2 text-xs text-slate-400">
+                Estimated speech duration: {Math.ceil(estimateSpeechDurationMs(activeLine.spoken) / 1000)}
+                s
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

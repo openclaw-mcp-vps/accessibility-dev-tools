@@ -1,122 +1,94 @@
-import "server-only";
-
 import { createHmac, timingSafeEqual } from "crypto";
-import { mkdir, readFile, writeFile } from "fs/promises";
-import path from "path";
 
-export type SubscriptionRecord = {
-  email: string;
-  sessionId: string;
-  status: "active";
-  amountTotal?: number;
-  currency?: string;
-  purchasedAt: string;
-  updatedAt: string;
-};
-
-type SubscriptionStore = {
-  subscriptions: SubscriptionRecord[];
-};
-
-const storePath = path.join(process.cwd(), "data", "subscriptions.json");
-
-function normalizeEmail(value: string): string {
-  return value.trim().toLowerCase();
+interface StripeWebhookEvent {
+  id: string;
+  type: string;
+  data: {
+    object: Record<string, unknown>;
+  };
 }
 
-async function readStore(): Promise<SubscriptionStore> {
-  try {
-    const raw = await readFile(storePath, "utf8");
-    const parsed = JSON.parse(raw) as SubscriptionStore;
-    if (!Array.isArray(parsed.subscriptions)) {
-      return { subscriptions: [] };
-    }
+function safeCompare(a: string, b: string): boolean {
+  const left = Buffer.from(a, "utf8");
+  const right = Buffer.from(b, "utf8");
 
-    return parsed;
-  } catch {
-    return { subscriptions: [] };
+  if (left.length !== right.length) {
+    return false;
   }
+
+  return timingSafeEqual(left, right);
 }
 
-async function writeStore(data: SubscriptionStore): Promise<void> {
-  await mkdir(path.dirname(storePath), { recursive: true });
-  await writeFile(storePath, JSON.stringify(data, null, 2), "utf8");
+export function getStripePaymentLink(): string | undefined {
+  return process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK;
 }
 
-export function getStripePaymentLink(): string {
-  return process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK ?? "";
-}
+export function verifyStripeWebhookSignature(
+  payload: string,
+  signatureHeader: string | null,
+  secret: string | undefined
+): boolean {
+  if (!signatureHeader || !secret) {
+    return false;
+  }
 
-export function verifyStripeSignature(payload: string, stripeSignatureHeader: string, secret: string): boolean {
-  const pairs = stripeSignatureHeader.split(",").map((entry) => entry.trim());
-  const timestamp = pairs.find((entry) => entry.startsWith("t="))?.slice(2);
-  const signatures = pairs
-    .filter((entry) => entry.startsWith("v1="))
-    .map((entry) => entry.slice(3))
-    .filter(Boolean);
+  const values = Object.fromEntries(
+    signatureHeader
+      .split(",")
+      .map((part) => part.trim().split("="))
+      .filter((pair): pair is [string, string] => pair.length === 2)
+  );
 
-  if (!timestamp || signatures.length === 0) {
+  const timestamp = values.t;
+  const signature = values.v1;
+
+  if (!timestamp || !signature) {
     return false;
   }
 
   const signedPayload = `${timestamp}.${payload}`;
-  const digest = createHmac("sha256", secret).update(signedPayload).digest("hex");
+  const expected = createHmac("sha256", secret)
+    .update(signedPayload, "utf8")
+    .digest("hex");
 
-  return signatures.some((signature) => {
-    const received = Buffer.from(signature, "hex");
-    const expected = Buffer.from(digest, "hex");
-
-    if (received.length !== expected.length) {
-      return false;
-    }
-
-    return timingSafeEqual(received, expected);
-  });
+  return safeCompare(signature, expected);
 }
 
-export async function activateSubscription(input: {
-  email: string;
-  sessionId: string;
-  amountTotal?: number;
-  currency?: string;
-}) {
-  const email = normalizeEmail(input.email);
-  const now = new Date().toISOString();
+export function parseStripeWebhookEvent(payload: string): StripeWebhookEvent | null {
+  try {
+    const parsed = JSON.parse(payload) as StripeWebhookEvent;
+    if (!parsed?.type || !parsed?.data?.object) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
-  const store = await readStore();
-  const existingIndex = store.subscriptions.findIndex(
-    (record) => normalizeEmail(record.email) === email || record.sessionId === input.sessionId
-  );
+export function extractEmailFromCheckoutEvent(event: StripeWebhookEvent): string | null {
+  const object = event.data.object;
 
-  const nextRecord: SubscriptionRecord = {
-    email,
-    sessionId: input.sessionId,
-    status: "active",
-    amountTotal: input.amountTotal,
-    currency: input.currency,
-    purchasedAt: existingIndex >= 0 ? store.subscriptions[existingIndex].purchasedAt : now,
-    updatedAt: now
-  };
-
-  if (existingIndex >= 0) {
-    store.subscriptions[existingIndex] = nextRecord;
-  } else {
-    store.subscriptions.push(nextRecord);
+  if (!object) {
+    return null;
   }
 
-  await writeStore(store);
-  return nextRecord;
-}
+  const emailFromCustomer = object.customer_email;
+  if (typeof emailFromCustomer === "string" && emailFromCustomer.includes("@")) {
+    return emailFromCustomer;
+  }
 
-export async function hasActiveSubscriptionByEmail(email: string): Promise<boolean> {
-  const target = normalizeEmail(email);
-  const store = await readStore();
-  return store.subscriptions.some(
-    (record) => normalizeEmail(record.email) === target && record.status === "active"
-  );
-}
+  const customerDetails = object.customer_details;
+  if (
+    typeof customerDetails === "object" &&
+    customerDetails !== null &&
+    "email" in customerDetails
+  ) {
+    const email = customerDetails.email;
+    if (typeof email === "string" && email.includes("@")) {
+      return email;
+    }
+  }
 
-export async function hasActiveSubscriptionBySessionId(sessionId: string): Promise<boolean> {
-  const store = await readStore();
-  return store.subscriptions.some((record) => record.sessionId === sessionId && record.status === "active");
+  return null;
 }

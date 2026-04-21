@@ -1,51 +1,51 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Space_Grotesk, Geist } from "next/font/google";
+import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 
 import "./globals.css";
-import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-const displayFont = Space_Grotesk({
+const sans = Space_Grotesk({
   subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["400", "500", "700"]
+  variable: "--font-sans"
 });
 
-const monoFont = IBM_Plex_Mono({
+const mono = IBM_Plex_Mono({
   subsets: ["latin"],
-  variable: "--font-mono",
-  weight: ["400", "500", "600"]
+  weight: ["400", "500", "600"],
+  variable: "--font-mono"
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://accessibility-dev-tools.com"),
+  metadataBase: new URL("https://accessibility-dev-tools.dev"),
   title: {
-    default: "Accessibility Dev Tools | Development Tools for Blind Programmers",
+    default: "Accessibility Dev Tools | IDE Tools for Blind Programmers",
     template: "%s | Accessibility Dev Tools"
   },
   description:
-    "Accessible IDE extension packs, audio code navigation, and tactile feedback tooling for blind programmers who need professional development workflows.",
+    "Development tools for blind programmers: screen-reader-first IDE workflows, audio code navigation, and tactile coding feedback in one professional toolkit.",
   keywords: [
     "blind programmers",
     "accessible IDE",
-    "screen reader coding",
     "audio code navigation",
-    "tactile developer tools"
+    "screen reader coding",
+    "developer accessibility"
   ],
   openGraph: {
     title: "Accessibility Dev Tools",
     description:
-      "Development tools for blind programmers with better screen reader integration, audio navigation, and tactile feedback.",
-    type: "website",
-    url: "https://accessibility-dev-tools.com",
-    siteName: "Accessibility Dev Tools"
+      "A production toolkit that makes mainstream IDEs accessible to blind software engineers.",
+    url: "https://accessibility-dev-tools.dev",
+    siteName: "Accessibility Dev Tools",
+    locale: "en_US",
+    type: "website"
   },
   twitter: {
     card: "summary_large_image",
     title: "Accessibility Dev Tools",
     description:
-      "Production-grade accessibility tooling for blind software engineers using modern IDEs."
+      "Screen-reader-first developer tools with audio navigation and tactile feedback support."
+  },
+  alternates: {
+    canonical: "/"
   }
 };
 
@@ -53,10 +53,14 @@ export default function RootLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
-}>): React.JSX.Element {
+}>) {
   return (
-    <html lang="en" className={cn(displayFont.variable, monoFont.variable, "font-sans", geist.variable)}>
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${sans.variable} ${mono.variable} min-h-screen bg-[#0d1117] text-slate-100 antialiased`}
+      >
+        {children}
+      </body>
     </html>
   );
 }
