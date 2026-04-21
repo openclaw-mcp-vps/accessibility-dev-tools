@@ -1,0 +1,25 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#0D1117"/>
+  <rect x="50" y="50" width="1100" height="530" rx="28" fill="url(#paint0_linear)" stroke="#3D4A5A"/>
+  <circle cx="1040" cy="140" r="120" fill="#22D3EE" fill-opacity="0.16"/>
+  <circle cx="200" cy="520" r="140" fill="#3B82F6" fill-opacity="0.14"/>
+  <text x="110" y="230" fill="#E6EDF3" font-family="Atkinson Hyperlegible, Segoe UI, sans-serif" font-size="60" font-weight="700">
+    Accessibility Dev Tools
+  </text>
+  <text x="110" y="300" fill="#A6B4C4" font-family="Atkinson Hyperlegible, Segoe UI, sans-serif" font-size="34" font-weight="500">
+    Development tools for blind programmers
+  </text>
+  <text x="110" y="372" fill="#7DD3FC" font-family="Atkinson Hyperlegible, Segoe UI, sans-serif" font-size="30" font-weight="500">
+    Screen-reader integration, audio navigation, tactile feedback
+  </text>
+  <rect x="110" y="430" width="450" height="74" rx="12" fill="#7DD3FC"/>
+  <text x="138" y="478" fill="#0D1117" font-family="Atkinson Hyperlegible, Segoe UI, sans-serif" font-size="34" font-weight="700">
+    accessibility-dev-tools.com
+  </text>
+  <defs>
+    <linearGradient id="paint0_linear" x1="600" y1="50" x2="600" y2="580" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#161B22"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+  </defs>
+</svg>

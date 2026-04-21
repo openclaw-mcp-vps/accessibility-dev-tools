@@ -4,29 +4,29 @@ Build a complete, production-ready Next.js 15 App Router application.
 
 PROJECT: accessibility-dev-tools
 HEADLINE: Development tools for blind programmers
-WHAT: None
-WHY: None
-WHO PAYS: None
+WHAT: Development tools that make IDEs and code editors fully accessible to blind programmers through enhanced screen reader integration, audio code navigation, and tactile feedback systems.
+WHY: Blind developers face constant friction with mainstream IDEs that weren't built for screen readers, forcing them to use inferior tools or abandon programming entirely. The developer shortage makes this talent pool critical.
+WHO PAYS: Blind software engineers at tech companies, accessibility consultants who code, and computer science students with visual impairments who need professional-grade development environments.
 NICHE: accessibility-tools
 PRICE: $$15/mo
 
 ARCHITECTURE SPEC:
-A Next.js web application providing screen reader-optimized code editors, audio feedback tools, and accessibility testing utilities for blind developers. The app uses a subscription model with Lemon Squeezy for payment processing and includes specialized components for code navigation via keyboard shortcuts and voice commands.
+A Next.js web application that provides downloadable IDE extensions and desktop tools for enhanced accessibility. The platform manages user subscriptions, delivers software updates, and provides documentation through a fully screen-reader optimized interface.
 
 PLANNED FILES:
 - app/page.tsx
+- app/download/page.tsx
 - app/dashboard/page.tsx
-- app/editor/page.tsx
-- app/api/webhook/route.ts
-- components/AccessibleCodeEditor.tsx
-- components/AudioFeedback.tsx
-- components/KeyboardNavigator.tsx
+- app/api/auth/route.ts
+- app/api/webhooks/lemonsqueezy/route.ts
+- app/api/download/route.ts
 - components/ScreenReaderOptimized.tsx
-- lib/accessibility-utils.ts
-- lib/lemon-squeezy.ts
-- lib/audio-engine.ts
+- components/AudioPlayer.tsx
+- lib/lemonsqueezy.ts
+- lib/auth.ts
+- lib/accessibility.ts
 
-DEPENDENCIES: next, react, typescript, tailwindcss, @lemonsqueezy/lemonsqueezy.js, monaco-editor, react-monaco-editor, web-speech-api, tone, zustand, prisma, @prisma/client, next-auth, lucide-react
+DEPENDENCIES: next, tailwindcss, @lemonsqueezy/lemonsqueezy.js, next-auth, prisma, @prisma/client, react-aria, focus-trap-react, howler, framer-motion
 
 REQUIREMENTS:
 - Next.js 15 with App Router (app/ directory)

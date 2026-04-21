@@ -1,57 +1,59 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
-
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin"],
-  display: "swap"
-});
-
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500", "600"]
-});
-
 export const metadata: Metadata = {
-  metadataBase: new URL("https://accessibility-dev-tools.example"),
-  title: {
-    default: "Accessibility Dev Tools",
-    template: "%s | Accessibility Dev Tools"
-  },
+  metadataBase: new URL("https://accessibility-dev-tools.com"),
+  title: "Accessibility Dev Tools | IDE Accessibility for Blind Programmers",
   description:
-    "Screen reader-optimized developer tools for blind programmers: accessible code editing, audio guidance, and keyboard-first diagnostics.",
+    "Development tools for blind programmers: screen-reader-first IDE workflows, audio code navigation, tactile feedback cues, and downloadable extension packs.",
+  keywords: [
+    "blind programmers",
+    "accessible IDE",
+    "screen reader coding",
+    "audio code navigation",
+    "tactile programming tools",
+  ],
   openGraph: {
     title: "Accessibility Dev Tools",
     description:
-      "Build and review code with audio feedback, semantic navigation, and automated accessibility diagnostics tuned for blind developers.",
-    url: "https://accessibility-dev-tools.example",
+      "Professional development tools that make mainstream IDEs and code editors fully accessible to blind software engineers.",
+    url: "https://accessibility-dev-tools.com",
     siteName: "Accessibility Dev Tools",
+    images: [
+      {
+        url: "/og-image.svg",
+        width: 1200,
+        height: 630,
+        alt: "Accessibility Dev Tools platform preview",
+      },
+    ],
     locale: "en_US",
-    type: "website"
+    type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Accessibility Dev Tools",
     description:
-      "A practical toolkit for blind programmers: keyboard-native editor controls, spoken cues, and accessibility regression checks."
+      "Accessible coding tools for blind programmers with screen-reader-first workflows.",
+    images: ["/og-image.svg"],
   },
-  alternates: {
-    canonical: "/"
-  }
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
-  children
+  children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${spaceGrotesk.variable} ${plexMono.variable} bg-[#0d1117] text-[var(--foreground)] antialiased`}>
+    <html lang="en">
+      <body>
+        <a className="skip-link" href="#main-content">
+          Skip to main content
+        </a>
         {children}
       </body>
     </html>
