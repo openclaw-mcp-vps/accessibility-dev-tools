@@ -1,93 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import {
-  extractCustomerEmail,
-  extractCustomerId,
-  type StripeWebhookEvent,
-  verifyStripeWebhookSignature
+  getSigningSecret,
+  recordStripeEntitlement,
+  verifyStripeWebhookSignature,
 } from "@/lib/lemonsqueezy";
-import {
-  rememberWebhookEvent,
-  upsertSubscription,
-  updateSubscriptionStatusByCustomerId
-} from "@/lib/database";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  const rawPayload = await request.text();
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const SUPPORTED_EVENT_TYPES = new Set([
+  "checkout.session.completed",
+  "invoice.paid",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+]);
 
-  if (webhookSecret) {
-    const signatureHeader = request.headers.get("stripe-signature");
-    const isValid = verifyStripeWebhookSignature({
-      payload: rawPayload,
-      signatureHeader,
-      secret: webhookSecret
-    });
+export async function POST(request: NextRequest) {
+  const payload = await request.text();
+  const signature = request.headers.get("stripe-signature");
+  const secret = getSigningSecret();
 
-    if (!isValid) {
-      return NextResponse.json({ error: "Invalid webhook signature." }, { status: 400 });
-    }
+  const isValidSignature = verifyStripeWebhookSignature(payload, signature, secret);
+  if (!isValidSignature) {
+    return NextResponse.json({ received: false, error: "Invalid signature" }, { status: 400 });
   }
 
-  let event: StripeWebhookEvent;
-  try {
-    event = JSON.parse(rawPayload) as StripeWebhookEvent;
-  } catch {
-    return NextResponse.json({ error: "Webhook payload is not valid JSON." }, { status: 400 });
+  const event = JSON.parse(payload) as { type?: string };
+  if (!event.type || !SUPPORTED_EVENT_TYPES.has(event.type)) {
+    return NextResponse.json({ received: true, ignored: true });
   }
 
-  if (!event.id || !event.type) {
-    return NextResponse.json({ error: "Webhook is missing required event fields." }, { status: 400 });
-  }
-
-  const isNewEvent = await rememberWebhookEvent(event.id);
-  if (!isNewEvent) {
-    return NextResponse.json({ received: true, deduplicated: true });
-  }
-
-  const customerEmail = extractCustomerEmail(event);
-  const customerId = extractCustomerId(event);
-
-  if (event.type === "checkout.session.completed" || event.type === "invoice.paid") {
-    if (!customerEmail) {
-      return NextResponse.json({ received: true, skipped: "Missing customer email." });
-    }
-
-    const subscription = await upsertSubscription({
-      email: customerEmail,
-      status: "active",
-      source: "stripe",
-      customerId,
-      eventId: event.id
-    });
-
-    return NextResponse.json({ received: true, subscription });
-  }
-
-  if (
-    event.type === "customer.subscription.deleted" ||
-    event.type === "invoice.payment_failed"
-  ) {
-    if (customerEmail) {
-      const subscription = await upsertSubscription({
-        email: customerEmail,
-        status: "canceled",
-        source: "stripe",
-        customerId,
-        eventId: event.id
-      });
-
-      return NextResponse.json({ received: true, subscription });
-    }
-
-    if (customerId) {
-      await updateSubscriptionStatusByCustomerId(customerId, "canceled", event.id);
-    }
-
-    return NextResponse.json({ received: true });
-  }
-
-  return NextResponse.json({ received: true, ignoredType: event.type });
+  const outcome = recordStripeEntitlement(event);
+  return NextResponse.json({ received: true, recorded: outcome.recorded, email: outcome.email });
 }

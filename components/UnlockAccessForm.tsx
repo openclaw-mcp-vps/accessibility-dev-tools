@@ -1,76 +1,71 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { LoaderCircle, LockOpen, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
-export function UnlockAccessForm(): React.JSX.Element {
+export function UnlockAccessForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [statusText, setStatusText] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setIsLoading(true);
+    setIsSubmitting(true);
+    setStatusText("Checking subscription status...");
 
     try {
       const response = await fetch("/api/auth", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "content-type": "application/json",
         },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
       });
 
-      const payload = (await response.json()) as { error?: string };
+      const payload = (await response.json()) as { message?: string };
 
       if (!response.ok) {
-        setError(payload.error ?? "Unable to unlock your subscription right now.");
+        setStatusText(payload.message || "We could not verify an active subscription for this email.");
         return;
       }
 
-      router.push("/dashboard");
+      setStatusText("Access unlocked. Loading your dashboard...");
       router.refresh();
     } catch {
-      setError("Network error while unlocking access. Please try again.");
+      setStatusText("Network error while verifying your subscription. Try again in a moment.");
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
-  };
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-5 grid gap-3 rounded-xl border border-[var(--line)] p-4">
-      <label htmlFor="unlock-email" className="text-sm font-medium text-[var(--text-soft)]">
-        Already purchased? Unlock with your checkout email
-      </label>
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Mail size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" />
-          <input
-            id="unlock-email"
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-md border border-[var(--line)] bg-[#0b1320] py-2 pl-9 pr-3 text-sm outline-none focus:border-[var(--accent)]"
-            placeholder="you@company.com"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="inline-flex min-w-40 items-center justify-center gap-2 rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[#0c141d] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {isLoading ? <LoaderCircle size={16} className="animate-spin" /> : <LockOpen size={16} />}
-          {isLoading ? "Checking..." : "Unlock Dashboard"}
-        </button>
+    <form onSubmit={onSubmit} className="space-y-4" aria-label="Unlock paid access">
+      <div className="space-y-2">
+        <label htmlFor="unlock-email" className="text-sm font-medium text-slate-200">
+          Stripe checkout email
+        </label>
+        <input
+          id="unlock-email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          className="input-dark w-full rounded-md px-3 py-2 text-sm"
+          placeholder="you@company.com"
+        />
       </div>
 
-      {error ? <p className="text-sm text-[#ff7b72]">{error}</p> : null}
+      <Button type="submit" disabled={isSubmitting || email.length < 5} className="w-full sm:w-auto">
+        {isSubmitting ? "Verifying..." : "Unlock My Tools"}
+      </Button>
+
+      <p className="text-sm text-slate-300" role="status" aria-live="polite">
+        {statusText}
+      </p>
     </form>
   );
 }

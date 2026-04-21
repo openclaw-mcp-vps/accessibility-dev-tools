@@ -1,112 +1,151 @@
-export type AccessibilityIssue = {
-  id: string;
+export type LandmarkType = "function" | "class" | "import" | "todo" | "warning";
+
+export interface CodeLandmark {
   line: number;
-  severity: "low" | "medium" | "high";
-  message: string;
-  recommendation: string;
-};
+  type: LandmarkType;
+  label: string;
+  context: string;
+}
 
-export type KeyboardShortcut = {
-  keys: string;
-  action: string;
-};
+const FUNCTION_REGEX = /^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/;
+const CLASS_REGEX = /^(?:export\s+)?class\s+([A-Za-z0-9_]+)/;
+const IMPORT_REGEX = /^import\s.+from\s+["'].+["'];?$/;
 
-export const keyboardShortcuts: KeyboardShortcut[] = [
-  { keys: "Alt+1", action: "Focus editor" },
-  { keys: "Alt+2", action: "Run accessibility scan" },
-  { keys: "Alt+3", action: "Read current line" },
-  { keys: "Alt+4", action: "Start voice command mode" },
-  { keys: "Alt+5", action: "Jump to diagnostics" }
-];
+export function extractCodeLandmarks(source: string): CodeLandmark[] {
+  const landmarks: CodeLandmark[] = [];
+  const lines = source.split(/\r?\n/);
 
-export function scanCodeForAccessibility(source: string): AccessibilityIssue[] {
-  const issues: AccessibilityIssue[] = [];
-  const lines = source.split("\n");
-  let issueCount = 0;
-
-  lines.forEach((lineText, index) => {
-    const line = index + 1;
-
-    if (/<img(?![^>]*\balt=)/.test(lineText)) {
-      issueCount += 1;
-      issues.push({
-        id: `issue-${issueCount}`,
-        line,
-        severity: "high",
-        message: "Image element is missing an alt attribute.",
-        recommendation: "Add meaningful alt text or use alt=\"\" for decorative images."
-      });
+  lines.forEach((rawLine, index) => {
+    const line = rawLine.trim();
+    if (!line) {
+      return;
     }
 
-    if (/<div[^>]*\bonClick=/.test(lineText) && !/onKey(?:Down|Up|Press)=/.test(lineText)) {
-      issueCount += 1;
-      issues.push({
-        id: `issue-${issueCount}`,
-        line,
-        severity: "high",
-        message: "Clickable div does not expose keyboard handlers.",
-        recommendation: "Use a semantic button or add keyboard handlers with role and tabIndex."
+    const functionMatch = line.match(FUNCTION_REGEX);
+    if (functionMatch) {
+      landmarks.push({
+        line: index + 1,
+        type: "function",
+        label: `Function ${functionMatch[1]}`,
+        context: rawLine,
       });
+      return;
     }
 
-    if (/<input(?![^>]*(aria-label|aria-labelledby|id=))/.test(lineText)) {
-      issueCount += 1;
-      issues.push({
-        id: `issue-${issueCount}`,
-        line,
-        severity: "medium",
-        message: "Input may be unlabeled for screen readers.",
-        recommendation: "Associate a label using htmlFor/id or provide aria-label."
+    const classMatch = line.match(CLASS_REGEX);
+    if (classMatch) {
+      landmarks.push({
+        line: index + 1,
+        type: "class",
+        label: `Class ${classMatch[1]}`,
+        context: rawLine,
       });
+      return;
     }
 
-    if (/style=\{\{[^}]*outline:\s*['\"]?none/.test(lineText)) {
-      issueCount += 1;
-      issues.push({
-        id: `issue-${issueCount}`,
-        line,
-        severity: "medium",
-        message: "Focus outline is removed.",
-        recommendation: "Keep visible focus styles for keyboard users."
+    if (IMPORT_REGEX.test(line)) {
+      landmarks.push({
+        line: index + 1,
+        type: "import",
+        label: "Module import",
+        context: rawLine,
+      });
+      return;
+    }
+
+    if (/\b(TODO|FIXME)\b/i.test(line)) {
+      landmarks.push({
+        line: index + 1,
+        type: "todo",
+        label: "TODO or FIXME note",
+        context: rawLine,
+      });
+      return;
+    }
+
+    if (/\b(throw\s+new|console\.error|catch\s*\()/.test(line)) {
+      landmarks.push({
+        line: index + 1,
+        type: "warning",
+        label: "Potential error-handling block",
+        context: rawLine,
       });
     }
   });
 
-  return issues;
+  return landmarks;
 }
 
-export function summarizeAccessibilityIssues(issues: AccessibilityIssue[]): string {
-  if (!issues.length) {
-    return "No obvious accessibility issues were detected in this pass.";
+export function buildAudioSummary(landmarks: CodeLandmark[], lineCount: number): string {
+  if (lineCount === 0) {
+    return "This file is empty.";
   }
 
-  const high = issues.filter((item) => item.severity === "high").length;
-  const medium = issues.filter((item) => item.severity === "medium").length;
-  const low = issues.filter((item) => item.severity === "low").length;
-
-  return `${issues.length} issues found: ${high} high, ${medium} medium, ${low} low severity.`;
-}
-
-export function getLineText(source: string, lineNumber: number): string {
-  const lines = source.split("\n");
-  if (lineNumber < 1 || lineNumber > lines.length) {
-    return "Line out of range.";
+  if (landmarks.length === 0) {
+    return `Scanned ${lineCount} lines. No major structural landmarks were detected.`;
   }
 
-  return lines[lineNumber - 1]?.trim() || "Blank line";
+  const summaryByType = landmarks.reduce<Record<LandmarkType, number>>(
+    (acc, item) => {
+      acc[item.type] += 1;
+      return acc;
+    },
+    {
+      function: 0,
+      class: 0,
+      import: 0,
+      todo: 0,
+      warning: 0,
+    },
+  );
+
+  return [
+    `Scanned ${lineCount} lines and found ${landmarks.length} landmarks.`,
+    `${summaryByType.import} imports, ${summaryByType.class} classes, ${summaryByType.function} functions.`,
+    `${summaryByType.todo} TODO markers and ${summaryByType.warning} error-handling hotspots.`,
+  ].join(" ");
 }
 
-export function parseLineCommand(transcript: string): number | null {
-  const match = transcript.match(/line\s+(\d+)/i);
-  if (!match) {
-    return null;
+export function tactileCueForType(type: LandmarkType): string {
+  switch (type) {
+    case "function":
+      return "pulse-pulse";
+    case "class":
+      return "long-pulse";
+    case "import":
+      return "tick";
+    case "todo":
+      return "double-tick";
+    case "warning":
+      return "buzz-buzz";
+    default:
+      return "tick";
   }
-
-  return Number.parseInt(match[1], 10);
 }
 
-export function estimateReadingTime(text: string): string {
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  const minutes = Math.max(1, Math.ceil(words / 180));
-  return `${minutes} min listen`;
+export function defaultDemoSnippet(): string {
+  return [
+    "import { readFileSync } from 'node:fs';",
+    "",
+    "class AccessibilityNavigator {",
+    "  constructor(private readonly sourcePath: string) {}",
+    "",
+    "  async functionPlaceholder() {}",
+    "",
+    "  summarize() {",
+    "    // TODO: add support for tactile hardware output",
+    "    try {",
+    "      return readFileSync(this.sourcePath, 'utf-8');",
+    "    } catch (error) {",
+    "      console.error(error);",
+    "      throw new Error('Unable to read source file');",
+    "    }",
+    "  }",
+    "}",
+    "",
+    "export async function runNavigator(path: string) {",
+    "  const nav = new AccessibilityNavigator(path);",
+    "  return nav.summarize();",
+    "}",
+  ].join("\n");
 }

@@ -1,100 +1,106 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import {
-  accessCookieOptions,
   ACCESS_COOKIE_NAME,
-  createAccessToken,
-  getAccessSessionFromCookie,
-  isPaidEmail
-} from "@/lib/auth";
+  createAccessCookieValue,
+  getSigningSecret,
+  hasActiveEntitlement,
+  normalizeEmail,
+  readAccessCookieValue,
+} from "@/lib/lemonsqueezy";
 
-function normalizeRedirectPath(value: string | undefined): string {
-  if (!value) {
-    return "/dashboard";
+const THIRTY_ONE_DAYS = 60 * 60 * 24 * 31;
+
+function readEmailFromBody(payload: unknown): string {
+  if (!payload || typeof payload !== "object") {
+    return "";
   }
 
-  return value.startsWith("/") ? value : "/dashboard";
+  const value = (payload as { email?: unknown }).email;
+  return typeof value === "string" ? value : "";
 }
 
-export async function GET() {
-  const session = await getAccessSessionFromCookie();
+export async function GET(request: NextRequest) {
+  const value = request.cookies.get(ACCESS_COOKIE_NAME)?.value;
+  const session = readAccessCookieValue(value, getSigningSecret());
 
   return NextResponse.json({
     authenticated: Boolean(session),
-    email: session?.email ?? null,
-    expiresAt: session?.expiresAt ?? null
+    email: session?.email || null,
+    plan: session?.plan || null,
   });
 }
 
 export async function POST(request: NextRequest) {
-  const contentType = request.headers.get("content-type") ?? "";
-
+  const contentType = request.headers.get("content-type") || "";
   let email = "";
-  let redirectTo = "/dashboard";
-  let expectsRedirect = false;
 
   if (contentType.includes("application/json")) {
-    const body = (await request.json()) as { email?: string; redirectTo?: string };
-    email = body.email ?? "";
-    redirectTo = normalizeRedirectPath(body.redirectTo);
+    const payload = await request.json().catch(() => null);
+    email = readEmailFromBody(payload);
   } else {
-    const formData = await request.formData();
-    email = String(formData.get("email") ?? "");
-    redirectTo = normalizeRedirectPath(String(formData.get("redirectTo") ?? "/dashboard"));
-    expectsRedirect = true;
+    const form = await request.formData().catch(() => null);
+    const raw = form?.get("email");
+    email = typeof raw === "string" ? raw : "";
   }
 
-  const normalizedEmail = email.trim().toLowerCase();
-
-  if (!normalizedEmail || !normalizedEmail.includes("@")) {
-    if (expectsRedirect) {
-      return NextResponse.redirect(new URL(`${redirectTo}?auth=invalid-email`, request.url));
-    }
-
-    return NextResponse.json(
-      { authenticated: false, message: "A valid purchase email is required." },
-      { status: 400 }
-    );
-  }
-
-  const paid = await isPaidEmail(normalizedEmail);
-
-  if (!paid) {
-    if (expectsRedirect) {
-      return NextResponse.redirect(new URL(`${redirectTo}?auth=not-found`, request.url));
-    }
-
+  const normalized = normalizeEmail(email);
+  if (!normalized || !normalized.includes("@")) {
     return NextResponse.json(
       {
-        authenticated: false,
-        message:
-          "No active subscription found for this email yet. Complete checkout and retry in 15-30 seconds."
+        authorized: false,
+        message: "Please provide the email address used at Stripe checkout.",
       },
-      { status: 402 }
+      { status: 400 },
     );
   }
 
-  const token = createAccessToken(normalizedEmail);
-
-  if (expectsRedirect) {
-    const response = NextResponse.redirect(new URL(redirectTo, request.url));
-    response.cookies.set(ACCESS_COOKIE_NAME, token, accessCookieOptions());
-    return response;
+  if (!hasActiveEntitlement(normalized)) {
+    return NextResponse.json(
+      {
+        authorized: false,
+        message:
+          "No active subscription found for that email. Complete checkout first, then try again with the same email.",
+      },
+      { status: 403 },
+    );
   }
 
+  const expiresAt = Date.now() + THIRTY_ONE_DAYS * 1000;
+  const value = createAccessCookieValue(
+    {
+      email: normalized,
+      plan: "Accessibility Dev Tools Pro",
+      expiresAt,
+    },
+    getSigningSecret(),
+  );
+
   const response = NextResponse.json({
-    authenticated: true,
-    email: normalizedEmail
+    authorized: true,
+    email: normalized,
+    expiresAt,
   });
-  response.cookies.set(ACCESS_COOKIE_NAME, token, accessCookieOptions());
+
+  response.cookies.set({
+    name: ACCESS_COOKIE_NAME,
+    value,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: THIRTY_ONE_DAYS,
+  });
+
   return response;
 }
 
 export async function DELETE() {
-  const response = NextResponse.json({ authenticated: false });
-  response.cookies.set(ACCESS_COOKIE_NAME, "", {
-    ...accessCookieOptions(),
-    maxAge: 0
+  const response = NextResponse.json({ authorized: false });
+  response.cookies.set({
+    name: ACCESS_COOKIE_NAME,
+    value: "",
+    maxAge: 0,
+    path: "/",
   });
   return response;
 }

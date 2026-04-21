@@ -11,24 +11,22 @@ NICHE: accessibility-tools
 PRICE: $$15/mo
 
 ARCHITECTURE SPEC:
-A Next.js web application that provides downloadable IDE extensions and desktop tools for enhanced accessibility. The platform manages user subscriptions, delivers screen reader-optimized development tools, and provides audio-based code navigation utilities.
+A Next.js web application that provides downloadable IDE extensions and desktop tools for enhanced accessibility. The platform manages user subscriptions, delivers accessibility plugins, and provides configuration dashboards for blind developers.
 
 PLANNED FILES:
 - app/page.tsx
-- app/download/page.tsx
 - app/dashboard/page.tsx
+- app/downloads/page.tsx
 - app/api/auth/route.ts
-- app/api/webhook/lemon-squeezy/route.ts
-- components/AudioCodePlayer.tsx
-- components/ScreenReaderOptimizer.tsx
-- components/TactileFeedbackConfig.tsx
-- lib/ide-extensions/vscode-accessibility.ts
-- lib/audio-navigation.ts
-- lib/screen-reader-api.ts
-- lib/lemon-squeezy.ts
-- lib/auth.ts
+- app/api/webhooks/lemonsqueezy/route.ts
+- components/AccessibilityDemo.tsx
+- components/ScreenReaderOptimized.tsx
+- lib/lemonsqueezy.ts
+- lib/accessibility-utils.ts
+- extensions/vscode-accessibility/extension.js
+- desktop-tools/audio-navigator/main.py
 
-DEPENDENCIES: next, tailwindcss, @lemonsqueezy/lemonsqueezy.js, next-auth, prisma, @prisma/client, web-speech-api, electron, vscode-extension-api, node-speaker, wav-decoder
+DEPENDENCIES: next, tailwindcss, @lemonsqueezy/lemonsqueezy.js, next-auth, prisma, @prisma/client, react-aria, focus-trap-react, electron, speech-synthesis-ssml-parser
 
 REQUIREMENTS:
 - Next.js 15 with App Router (app/ directory)

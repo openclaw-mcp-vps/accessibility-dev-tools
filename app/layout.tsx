@@ -1,65 +1,76 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
+import Link from "next/link";
+import { Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
+import "@/app/globals.css";
 
-import "./globals.css";
-
-const sans = Space_Grotesk({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
-  variable: "--font-sans"
+  variable: "--font-space-grotesk",
+  weight: ["400", "500", "600", "700"],
 });
 
-const mono = IBM_Plex_Mono({
+const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
+  variable: "--font-ibm-plex-mono",
   weight: ["400", "500", "600"],
-  variable: "--font-mono"
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://accessibility-dev-tools.dev"),
-  title: {
-    default: "Accessibility Dev Tools | IDE Tools for Blind Programmers",
-    template: "%s | Accessibility Dev Tools"
-  },
+  metadataBase: new URL("https://accessibility-dev-tools.com"),
+  title: "Accessibility Dev Tools | Development tools for blind programmers",
   description:
-    "Development tools for blind programmers: screen-reader-first IDE workflows, audio code navigation, and tactile coding feedback in one professional toolkit.",
+    "Download IDE accessibility plugins, unlock audio code navigation, and configure screen-reader-first coding workflows built for blind developers.",
   keywords: [
-    "blind programmers",
+    "blind programmer tools",
     "accessible IDE",
-    "audio code navigation",
     "screen reader coding",
-    "developer accessibility"
+    "audio code navigation",
+    "developer accessibility",
   ],
   openGraph: {
     title: "Accessibility Dev Tools",
     description:
-      "A production toolkit that makes mainstream IDEs accessible to blind software engineers.",
-    url: "https://accessibility-dev-tools.dev",
+      "Professional accessibility tooling for blind software engineers, students, and consultants.",
+    url: "https://accessibility-dev-tools.com",
     siteName: "Accessibility Dev Tools",
-    locale: "en_US",
-    type: "website"
+    type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Accessibility Dev Tools",
     description:
-      "Screen-reader-first developer tools with audio navigation and tactile feedback support."
+      "Enhanced screen reader integration, audio navigation, and tactile feedback support for mainstream editors.",
   },
-  alternates: {
-    canonical: "/"
-  }
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
-  children
+  children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${sans.variable} ${mono.variable} min-h-screen bg-[#0d1117] text-slate-100 antialiased`}
-      >
-        {children}
+    <html lang="en" className={`${spaceGrotesk.variable} ${ibmPlexMono.variable}`}>
+      <body className="text-slate-50 antialiased">
+        <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-[#0d1117]/95 backdrop-blur">
+          <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+            <Link href="/" className="text-sm font-semibold tracking-wide text-slate-100">
+              accessibility-dev-tools
+            </Link>
+            <div className="flex items-center gap-4 text-sm text-slate-300">
+              <Link className="hover:text-white" href="/dashboard">
+                Dashboard
+              </Link>
+              <Link className="hover:text-white" href="/downloads">
+                Downloads
+              </Link>
+            </div>
+          </nav>
+        </header>
+        <main>{children}</main>
       </body>
     </html>
   );

@@ -1,9 +1,4 @@
-node_modules
 .next
-out
-.DS_Store
+node_modules
 .env
-.env.local
-.env.production
-npm-debug.log*
-.data/*.json
+.DS_Store
